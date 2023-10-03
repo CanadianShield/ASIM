@@ -373,4 +373,63 @@ Now when we run the following:
 imAuthentication(starttime=now(), endtime=ago(7d))
 ```
 
-It will return events from the `BadRouter_CL` table.
+It will return authentication events from the `BadRouter_CL` table.
+
+Then let do the Network Session one, in a new blank tab:
+
+```kql
+let BadRouterNetworkSessionParser=(
+    starttime:datetime=datetime(null), 
+    endtime:datetime=datetime(null),
+    srcipaddr_has_any_prefix:dynamic=dynamic([]), 
+    dstipaddr_has_any_prefix:dynamic=dynamic([]), 
+    ipaddr_has_any_prefix:dynamic=dynamic([]),
+    dstportnumber:int=int(null), 
+    hostname_has_any:dynamic=dynamic([]), 
+    dvcaction:dynamic=dynamic([]), 
+    eventresult:string='*', 
+    disabled:bool=false) {
+        BadRouter_CL
+        | where isempty(AuthType)
+        | extend EventCount = int(1),
+            EventStartTime = TimeGenerated,
+            EventEndTime = TimeGenerated,
+            EventType = "NetworkSession",
+            EventVendor = "BadVendor",
+            EventProduct = "BadProduct",
+            EventSchema = "NetworkSession",
+            EventSchemaVersion = "0.2.6",
+            Dvc = tostring(split(_ResourceId,"/")[-1]),
+            NetworkDirection = "Outbound",
+            DvcAction = iff(ResultCode == 0, "Allow", "Drop"),
+            EventResult = "Success",
+            Type = "BadRouter_CL",
+            IpAddr = SourceIp
+        | project-rename SrcIpAddr = SourceIp,
+            SrcPortNumber = SourcePort,
+            DstIpAddr = DestinationIp,
+            DstPortNumber = DestinationPort
+        | project TimeGenerated, EventCount, EventStartTime, EventEndTime, EventType, EventVendor, EventProduct, EventSchema, EventSchemaVersion, EventResult, Dvc, NetworkDirection, DvcAction, SrcIpAddr, SrcPortNumber, DstIpAddr, DstPortNumber, SessionId, IpAddr, Type
+  };
+BadRouterNetworkSessionParser (starttime, endtime, srcipaddr_has_any_prefix, dstipaddr_has_any_prefix, ipaddr_has_any_prefix, dstportnumber, hostname_has_any, dvcaction, eventresult, disabled)
+```
+
+Then save it as a function called `vimNetworkSessionBadRouter` using the following parameters:
+
+|Type|Name|Default value|
+|-|-|-|
+|datetime|startime|`datetime(null)`|
+|datetime|endtime|`datetime(null)`|
+|dynamic|srcipaddr_has_any_prefix|`dynamic([])`|
+|dynamic|dstipaddr_has_any_prefix|`dynamic([])`|
+|dynamic|ipaddr_has_any_prefix|`dynamic([])`|
+|int|dstportnumber|int(null)|
+|dynamic|hostname_has_any|`dynamic([])`|
+|dynamic|dvcaction|`dynamic([])`|
+|dynamic|dvcaction|`dynamic([])`|
+|string|eventresult|'*'|
+|bool|disabled|False|
+
+Then you can deploy the `Im_NetworkSessionCustom` empty function from here:  [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzure-Sentinel%2Fmaster%2FASIM%2Fdeploy%2FEmptyCustomUnifyingParsers%2FNetworkSessionDeploymentCustomUnifyingParsers.json).
+
+Then edit this function to reference your `vimNetworkSessionBadRouter` parser.
