@@ -340,7 +340,7 @@ let BadRouterAuthParser=(
             SrcIpAddress = iff(SourceIp != "-", SourceIp, "")
         | project-rename TargetUsername = User,
             TargetDomain = Realm
-        | project TimeGenerated, EventType, EventSchemaVersion, EventSchema, EventCount, EventStartTime, EventEndTime, EventResult, Dvc, TargetUsername, TargetDomain,SrcIpAddress
+        | project TimeGenerated, EventType, EventSchemaVersion, EventSchema, EventProduct, EventVendor, EventCount, EventStartTime, EventEndTime, EventResult, Dvc, TargetUsername, TargetDomain,SrcIpAddress
     };
 BadRouterAuthParser(
   starttime=starttime, 
