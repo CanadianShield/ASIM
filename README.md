@@ -390,7 +390,25 @@ let BadRouterNetworkSessionParser=(
     eventresult:string='*', 
     disabled:bool=false) {
         BadRouter_CL
-        | where isempty(AuthType)
+        | where  
+            (isnull(starttime) or TimeGenerated >= starttime) 
+            and (isnull(endtime) or TimeGenerated <= endtime)
+            and isempty(AuthType)
+            and (isnull(dstportnumber) or (DestinationPort == dstportnumber))
+            and ((array_length(dvcaction) == 0) or Action has_any (dvcaction))
+            and ((eventresult == "*") or (EventResult == eventresult))
+            and  (array_length(ip_any)==0 or has_any_ipv4_prefix(EventData ,ip_any)) 
+        | extend temp_isSrcMatch=has_any_ipv4_prefix(SourceIp,src_or_any), 
+            temp_isDstMatch=has_any_ipv4_prefix(DestinationIp,dst_or_any)
+        | extend ASimMatchingIpAddr = case(
+            array_length(src_or_any) == 0 and array_length(dst_or_any) == 0, "-", // match not requested
+            (temp_isSrcMatch and temp_isDstMatch), "Both", // has to be checked before the individual 
+            temp_isSrcMatch, "SourceIp",
+            temp_isDstMatch, "DestinationIp",
+            "No match"
+        )
+        | where ASimMatchingIpAddr != "No match"
+        | project-away temp_*
         | extend EventCount = int(1),
             EventStartTime = TimeGenerated,
             EventEndTime = TimeGenerated,
