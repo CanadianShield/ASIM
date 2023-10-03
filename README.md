@@ -56,7 +56,7 @@ BadRouter_CL
 
 Sample for network session event:
 
-```
+```kql
 BadRouter_CL
 | where isempty(AuthType)
 | take 1
@@ -373,4 +373,4 @@ Now when we run the following:
 imAuthentication(starttime=now(), endtime=ago(7d))
 ```
 
-It will return events from the BadRouter_CL table.
+It will return events from the `BadRouter_CL` table.
