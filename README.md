@@ -362,7 +362,7 @@ Then click Save as funtion, call it `vimAuthenticationBadRouter` and those 4 par
 Now we need to modify the `imAuthentication` to add our parser to it. Load it in the Logs blade and add the following in the union:
 
 ```kql
-, vimAuthenticationBadRouter               (starttime, endtime, (imAuthenticationDisabled or('ExcludevimAuthenticationBadRouter' in (DisabledParsers) )))
+, vimAuthenticationBadRouter               (starttime, endtime, targetusername_has, (imAuthenticationDisabled or('ExcludevimAuthenticationBadRouter' in (DisabledParsers) )))
 ```
 
 And click **Save** and confirm. 
