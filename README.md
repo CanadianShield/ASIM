@@ -297,8 +297,8 @@ BadRouter_CL
     and isempty(AuthType)
     and (isnull(dstportnumber) or (DestinationPort == dstportnumber))
     and ((array_length(dvcaction) == 0) or Action has_any (dvcaction))
-    and ((eventresult == "*") or (EventResult == eventresult))
-    and  (array_length(ip_any)==0 or has_any_ipv4_prefix(EventData ,ip_any)) 
+    and ((eventresult == "*") or ("Success" == eventresult))
+    and  (array_length(ip_any)==0 or has_any_ipv4_prefix(SourceIp,ip_any) or has_any_ipv4_prefix(DestinationIp ,ip_any)) 
 | extend temp_isSrcMatch=has_any_ipv4_prefix(SourceIp,src_or_any), 
     temp_isDstMatch=has_any_ipv4_prefix(DestinationIp,dst_or_any)
 | extend ASimMatchingIpAddr = case(
@@ -311,7 +311,7 @@ BadRouter_CL
 | where ASimMatchingIpAddr != "No match"
 | project-away temp_*
 ```
-> Note that we use `isempty(AuthType)` as well as the `DestinationPort`,`Action`,`EventResult`,`SourceIp` and `DestinationIp` fields to filter. This is to match the name of the fields in our custom tables.
+> Note that we use `isempty(AuthType)` as well as the `DestinationPort`,`Action`,`EventResult`,`SourceIp` and `DestinationIp` fields to filter. This is to match the name of the fields in our custom tables. And we hardcode "Success" as that's the only type of event we get in this table anyway. 
 
 ### Putting things together
 
@@ -358,7 +358,7 @@ Then click Save as funtion, call it `vimAuthenticationBadRouter` and those 4 par
 
 |Type|Name|Default value|
 |-|-|-|
-|datetime|startime|`datetime(null)`|
+|datetime|starttime|`datetime(null)`|
 |datetime|endtime|`datetime(null)`|
 |string|targetusername_has|`'*'`|
 |bool|disabled|False|
@@ -374,7 +374,7 @@ And click **Save** and confirm.
 Now when we run the following:
 
 ```kql
-imAuthentication(starttime=now(), endtime=ago(7d))
+imAuthentication(starttime=ago(7d), endtime=now())
 ```
 
 It will return authentication events from the `BadRouter_CL` table.
@@ -382,6 +382,9 @@ It will return authentication events from the `BadRouter_CL` table.
 Then let do the Network Session one, in a new blank tab:
 
 ```kql
+let src_or_any=set_union(srcipaddr_has_any_prefix, ipaddr_has_any_prefix); 
+let dst_or_any=set_union(dstipaddr_has_any_prefix, ipaddr_has_any_prefix); 
+let ip_any = set_union(srcipaddr_has_any_prefix, dstipaddr_has_any_prefix, ipaddr_has_any_prefix);    
 let BadRouterNetworkSessionParser=(
     starttime:datetime=datetime(null), 
     endtime:datetime=datetime(null),
@@ -400,8 +403,8 @@ let BadRouterNetworkSessionParser=(
             and isempty(AuthType)
             and (isnull(dstportnumber) or (DestinationPort == dstportnumber))
             and ((array_length(dvcaction) == 0) or Action has_any (dvcaction))
-            and ((eventresult == "*") or (EventResult == eventresult))
-            and  (array_length(ip_any)==0 or has_any_ipv4_prefix(EventData ,ip_any)) 
+            and ((eventresult == "*") or ("Success" == eventresult))
+            and  (array_length(ip_any)==0 or has_any_ipv4_prefix(SourceIp,ip_any) or has_any_ipv4_prefix(DestinationIp ,ip_any)) 
         | extend temp_isSrcMatch=has_any_ipv4_prefix(SourceIp,src_or_any), 
             temp_isDstMatch=has_any_ipv4_prefix(DestinationIp,dst_or_any)
         | extend ASimMatchingIpAddr = case(
@@ -433,14 +436,14 @@ let BadRouterNetworkSessionParser=(
             DstPortNumber = DestinationPort
         | project TimeGenerated, EventCount, EventStartTime, EventEndTime, EventType, EventVendor, EventProduct, EventSchema, EventSchemaVersion, EventResult, Dvc, NetworkDirection, DvcAction, SrcIpAddr, SrcPortNumber, DstIpAddr, DstPortNumber, SessionId, IpAddr, Type
   };
-BadRouterNetworkSessionParser (starttime, endtime, srcipaddr_has_any_prefix, dstipaddr_has_any_prefix, ipaddr_has_any_prefix, dstportnumber, hostname_has_any, dvcaction, eventresult, disabled)
+BadRouterNetworkSessionParser(starttime, endtime, srcipaddr_has_any_prefix, dstipaddr_has_any_prefix, ipaddr_has_any_prefix, dstportnumber, hostname_has_any, dvcaction, eventresult, disabled)
 ```
 
 Then save it as a function called `vimNetworkSessionBadRouter` using the following parameters:
 
 |Type|Name|Default value|
 |-|-|-|
-|datetime|startime|`datetime(null)`|
+|datetime|starttime|`datetime(null)`|
 |datetime|endtime|`datetime(null)`|
 |dynamic|srcipaddr_has_any_prefix|`dynamic([])`|
 |dynamic|dstipaddr_has_any_prefix|`dynamic([])`|
@@ -448,10 +451,20 @@ Then save it as a function called `vimNetworkSessionBadRouter` using the followi
 |int|dstportnumber|int(null)|
 |dynamic|hostname_has_any|`dynamic([])`|
 |dynamic|dvcaction|`dynamic([])`|
-|dynamic|dvcaction|`dynamic([])`|
 |string|eventresult|'*'|
 |bool|disabled|False|
 
 Then you can deploy the `Im_NetworkSessionCustom` empty function from here:  [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzure-Sentinel%2Fmaster%2FASIM%2Fdeploy%2FEmptyCustomUnifyingParsers%2FNetworkSessionDeploymentCustomUnifyingParsers.json).
 
-Then edit this function to reference your `vimNetworkSessionBadRouter` parser.
+Then edit this function to reference your `vimNetworkSessionBadRouter` parser. For example with something like this:
+
+```kql
+union isfuzzy=true ASimEmptyView,
+vimNetworkSessionBadRouter(starttime= starttime, endtime= endtime, srcipaddr_has_any_prefix= srcipaddr_has_any_prefix, dstipaddr_has_any_prefix= dstipaddr_has_any_prefix, ipaddr_has_any_prefix= ipaddr_has_any_prefix, dstportnumber= dstportnumber, hostname_has_any= hostname_has_any, dvcaction= dvcaction, eventresult= eventresult, disabled= false)
+```
+
+Now when we run the following:
+
+```kql
+_Im_NetworkSession(starttime=ago(7d), endtime=now())
+```
