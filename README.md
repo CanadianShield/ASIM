@@ -326,7 +326,11 @@ let BadRouterAuthParser=(
     targetusername_has: string="*", 
     disabled: bool=false) {
         BadRouter_CL
-        | where isnotempty(AuthType)
+        | where 
+            (isnull(starttime) or TimeGenerated >= starttime) 
+            and (isnull(endtime) or TimeGenerated <= endtime)
+            and isnotempty(AuthType)
+            and (targetusername_has=='*' or (User has targetusername_has ))
         | extend EventType = "Logon" ,
             EventSchemaVersion = "0.1.3",
             EventSchema = "Authentication",
