@@ -361,7 +361,7 @@ Then click Save as funtion, call it `vimAuthenticationBadRouter` and those 4 par
 |datetime|starttime|`datetime(null)`|
 |datetime|endtime|`datetime(null)`|
 |string|targetusername_has|`'*'`|
-|bool|disabled|False|
+|bool|disabled|`false`|
 
 Now we need to modify the `imAuthentication` to add our parser to it. Load it in the Logs blade and add the following in the union:
 
@@ -448,11 +448,11 @@ Then save it as a function called `vimNetworkSessionBadRouter` using the followi
 |dynamic|srcipaddr_has_any_prefix|`dynamic([])`|
 |dynamic|dstipaddr_has_any_prefix|`dynamic([])`|
 |dynamic|ipaddr_has_any_prefix|`dynamic([])`|
-|int|dstportnumber|int(null)|
+|int|dstportnumber|`int(null)`|
 |dynamic|hostname_has_any|`dynamic([])`|
 |dynamic|dvcaction|`dynamic([])`|
-|string|eventresult|'*'|
-|bool|disabled|False|
+|string|eventresult|`'*'`|
+|bool|disabled|`false`|
 
 Then you can deploy the `Im_NetworkSessionCustom` empty function from here:  [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzure-Sentinel%2Fmaster%2FASIM%2Fdeploy%2FEmptyCustomUnifyingParsers%2FNetworkSessionDeploymentCustomUnifyingParsers.json).
 
